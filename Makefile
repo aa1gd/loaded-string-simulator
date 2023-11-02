@@ -3,6 +3,7 @@ CC = gcc
 # CFLAGS =
 CFLAGS = -g -Wall
 # CFLAGS = -D NDEBUG
+GSLCFLAGS = -lgsl -lgslcblas -lm
 
 # Build directory
 BUILD = build
@@ -16,7 +17,7 @@ build:
 
 # Dependency rules for file targets
 simulate: $(BUILD)/simulate.o $(BUILD)/importdata.o $(BUILD)/asolve.o
-	$(CC) $(CFLAGS) $(BUILD)/simulate.o $(BUILD)/importdata.o $(BUILD)/asolve.o -o simulate
+	$(CC) $(CFLAGS) $(GSLCFLAGS) $(BUILD)/simulate.o $(BUILD)/importdata.o $(BUILD)/asolve.o -o simulate
 $(BUILD)/simulate.o: simulate.c importdata.h asolve.h types.h 
 	$(CC) $(CFLAGS) -c simulate.c -o $(BUILD)/simulate.o
 $(BUILD)/importdata.o: importdata.c importdata.h types.h

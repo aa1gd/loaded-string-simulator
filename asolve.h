@@ -8,7 +8,6 @@
 
 #include "types.h"
 
-int asolve(Bead *beads[], double *connections[], 
-        double tension, int num_beads, enum SimType sim_type);
+int asolve(Simulation sim);
 
 #endif

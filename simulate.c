@@ -14,11 +14,7 @@
 
 int main(int argc, char *argv[])
 {
-    Bead *beads;
-    double *connections;
-    double tension;
-    int num_beads;
-    enum SimType sim_type;
+    Simulation sim;
 
     /* Check if a filename has been specified in the command */
     if (argc < 2)
@@ -28,15 +24,14 @@ int main(int argc, char *argv[])
     }
     else
     {
-        if (import_data(argv[1], &beads, &connections, &tension,
-                    &num_beads, &sim_type))
+        if (import_data(argv[argc - 1], &sim))
             return EXIT_FAILURE;
     }
 
-    asolve(&beads, &connections, tension, num_beads, sim_type);
+    asolve(sim);
 
-    free(beads);
-    free(connections);
+    free(sim.beads);
+    free(sim.connections);
 
     return EXIT_SUCCESS;
 }

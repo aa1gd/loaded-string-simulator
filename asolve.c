@@ -15,32 +15,31 @@
 
 #include "asolve.h"
 
-int asolve(Bead *beads[], double *connections[], 
-        double tension, int num_beads, enum SimType sim_type)
+int asolve(Simulation sim)
 {
     int i;
 
-    assert(beads != NULL);
-    assert(connections != NULL);
+    assert(sim.beads != NULL);
+    assert(sim.connections != NULL);
 
     printf("Performing an analytical solution for a ");
-    if (sim_type == STRING)
+    if (sim.sim_type == STRING)
         printf("string with ");
-    else if (sim_type == SPRING)
+    else if (sim.sim_type == SPRING)
         printf("spring with ");
-    printf("%d beads.\n", num_beads);
+    printf("%d beads.\n", sim.num_beads);
 
-    /*
-    if (sim_type == STRING)
-        printf("String tension: %f\n", tension);
+    /* Check that data was loaded correctly
+    if (sim.sim_type == STRING)
+        printf("String tension: %f\n", sim.tension);
 
-    for (i = 0; i < num_beads; i++)
+    for (i = 0; i < sim.num_beads; i++)
     {
-        printf("Length: %lf\n", (*connections)[i]);
-        printf("Mass: %lf x0: %lf v0: %lf\n", (*beads)[i].mass, (*beads)[i].x0,
-            (*beads)[i].v0);
+        printf("Length: %lf\n", sim.connections[i]);
+        printf("Mass: %lf x0: %lf v0: %lf\n", sim.beads[i].mass,
+                sim.beads[i].x0, sim.beads[i].v0);
     }
-    printf("Length: %lf\n", (*connections)[num_beads]);
+    printf("Length: %lf\n", sim.connections[sim.num_beads]);
     */
 
     return 0;

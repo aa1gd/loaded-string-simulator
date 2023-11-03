@@ -12,6 +12,7 @@
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_eigen.h>
+#include <gsl/gsl_linalg.h>
 
 #include "asolve.h"
 
@@ -167,8 +168,10 @@ static gsl_matrix *create_d_matrix(const gsl_matrix *mass_matrix,
     gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, invsqrtm, tempm, 0.0,
             d_matrix);
     
+    /*
     printf("d_matrix:\n");
     print_matrix(d_matrix);
+    */
 
     gsl_matrix_free(invsqrtm);
     gsl_matrix_free(tempm);
@@ -176,17 +179,21 @@ static gsl_matrix *create_d_matrix(const gsl_matrix *mass_matrix,
     return d_matrix;
 }
 
-/* TODO: let find_normal_modes call find_d_matrix */
-static Result find_normal_modes(gsl_matrix *d_matrix, gsl_matrix *mass_matrix)
+static Result find_normal_modes(const gsl_matrix *mass_matrix,
+        const gsl_matrix *k_matrix)
 {
     Result result;
     gsl_eigen_symmv_workspace *w;
     gsl_vector *eval;
     gsl_matrix *evec;
+    gsl_matrix *d_matrix;
     gsl_matrix *invsqrtm;
     int i, j;
 
-    assert(d_matrix != NULL);
+    assert(mass_matrix != NULL);
+    assert(k_matrix != NULL);
+
+    d_matrix = create_d_matrix(mass_matrix, k_matrix);
 
     w = gsl_eigen_symmv_alloc(d_matrix->size1);
     eval = gsl_vector_alloc(d_matrix->size1);
@@ -198,6 +205,7 @@ static Result find_normal_modes(gsl_matrix *d_matrix, gsl_matrix *mass_matrix)
     gsl_eigen_symmv_sort(eval, evec, GSL_EIGEN_SORT_ABS_ASC);
 
     result.num_modes = d_matrix->size1;
+
     /* Load in eigenfrequencies */
     /* Eigenfrequency = sqrt(eigenvalue) */
     result.eigenfrequencies = malloc(result.num_modes * sizeof(double));
@@ -230,32 +238,77 @@ static Result find_normal_modes(gsl_matrix *d_matrix, gsl_matrix *mass_matrix)
             result.eigenvectors[j][i] /= mag;
     }
 
-    /* Check eigenvalues and eigenvectors */
-    /*
-    for (i = 0; i < d_matrix->size1; i++)
-    {
-        double eval_i = gsl_vector_get (eval, i);
-        gsl_vector_view evec_i = gsl_matrix_column (evec, i);
-
-        printf ("eigenvalue = %g\n", eval_i);
-        printf ("eigenvector = \n");
-        gsl_vector_fprintf (stdout,
-                &evec_i.vector, "%g");
-    }
-    */
-
     gsl_vector_free(eval);
     gsl_matrix_free(evec);
     gsl_matrix_free(invsqrtm);
+    gsl_matrix_free(d_matrix);
 
     return result;
+}
+
+static Coefficient *apply_ics(Bead *beads, Result result)
+{
+    Coefficient *coeffs;
+    gsl_vector *ix, *iv, *a, *b;
+    gsl_matrix *eigv;
+    gsl_permutation *p;
+    int i, j;
+
+    assert(beads != NULL);
+    assert(result.eigenfrequencies != NULL);
+    assert(result.eigenvectors != NULL);
+
+    coeffs = malloc(result.num_modes * sizeof(Coefficient));
+    /* Skipping error checking */
+
+    a = gsl_vector_alloc(result.num_modes);
+    b = gsl_vector_alloc(result.num_modes);
+
+    ix = gsl_vector_alloc(result.num_modes);
+    iv = gsl_vector_alloc(result.num_modes);
+    for (i = 0; i < result.num_modes; i++)
+    {
+        gsl_vector_set(ix, i, beads[i].x0);
+        gsl_vector_set(iv, i, beads[i].v0);
+    }
+
+    eigv = gsl_matrix_alloc(result.num_modes, result.num_modes);
+    for (i = 0; i < result.num_modes; i++)
+        for (j = 0; j < result.num_modes; j++)
+            gsl_matrix_set(eigv, i, j, result.eigenvectors[i][j]);
+
+    /* Initial positions calculation */
+    /* Solved using LU decomposition */
+    p = gsl_permutation_alloc(result.num_modes);
+    gsl_linalg_LU_decomp (eigv, p, &i);
+    gsl_linalg_LU_solve (eigv, p, ix, a);
+    
+    /* Initial velocities calculation */
+    gsl_linalg_LU_solve (eigv, p, iv, b);
+
+    /* Load results into coefficients array */
+    for (i = 0; i < result.num_modes; i++)
+    {
+        coeffs[i].a = gsl_vector_get(a, i);
+        /* For velocity terms, we divide by the eigenfrequency since we took a 
+         * derivative */
+        coeffs[i].b = gsl_vector_get(b, i) / result.eigenfrequencies[i];
+    }
+
+    gsl_vector_free(a);
+    gsl_vector_free(b);
+    gsl_vector_free(ix);
+    gsl_vector_free(iv);
+    gsl_matrix_free(eigv);
+    gsl_permutation_free(p);
+
+    return coeffs;
 }
 
 Result asolve(Simulation sim)
 {
     Result result;
     gsl_matrix *mass_matrix, *k_matrix;
-    gsl_matrix *d_matrix;
 
     assert(sim.beads != NULL);
     assert(sim.connections != NULL);
@@ -266,6 +319,7 @@ Result asolve(Simulation sim)
     else if (sim.sim_type == SPRING)
         printf("spring with ");
     printf("%d beads.\n", sim.num_beads);
+    printf("\n");
 
     /* Check that data was loaded correctly
     if (sim.sim_type == STRING)
@@ -288,20 +342,19 @@ Result asolve(Simulation sim)
                 sim.num_beads);
 
     /* Check that matrices were loaded correctly */
+    /*
     printf("Mass matrix:\n");
     print_matrix(mass_matrix);
     printf("k matrix:\n");
     print_matrix(k_matrix);
+    */
 
-    d_matrix = create_d_matrix(mass_matrix, k_matrix);
-
-    result = find_normal_modes(d_matrix, mass_matrix);
+    result = find_normal_modes(mass_matrix, k_matrix);
+    result.coefficients = apply_ics(sim.beads, result);
 
     gsl_matrix_free(mass_matrix);
     gsl_matrix_free(k_matrix);
-    gsl_matrix_free(d_matrix);
 
-    /* result.num_modes = sim.num_beads; */
     return result;
 }
 

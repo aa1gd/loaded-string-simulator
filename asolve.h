@@ -8,6 +8,6 @@
 
 #include "types.h"
 
-int asolve(Simulation sim);
+Result asolve(Simulation sim);
 
 #endif

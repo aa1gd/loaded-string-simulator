@@ -24,4 +24,20 @@ typedef struct simulation
     enum SimType sim_type;
 } Simulation;
 
+typedef struct coefficient
+{
+    double a;
+    double b;
+    /* double phase psi; */
+    /* Perhaps damping goes in here too */
+} Coefficient;
+
+typedef struct result
+{
+    int num_modes;
+    double *eigenfrequencies;
+    double **eigenvectors;
+    Coefficient *coefficients;
+} Result;
+
 #endif

@@ -15,6 +15,7 @@
 int main(int argc, char *argv[])
 {
     Simulation sim;
+    Result result;
 
     /* Check if a filename has been specified in the command */
     if (argc < 2)
@@ -28,10 +29,20 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
     }
 
-    asolve(sim);
+    result = asolve(sim);
 
+    print_result(result);
+
+    /* TODO: make freer functions */
     free(sim.beads);
     free(sim.connections);
+    
+    /*
+    free(result.eigenfrequencies);
+    free(result.coefficients);
+    */
+
+    /* free eigenvectors in a for loop */
 
     return EXIT_SUCCESS;
 }

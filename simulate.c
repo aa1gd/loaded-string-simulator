@@ -32,6 +32,7 @@ int main(int argc, char *argv[])
     result = asolve(sim);
 
     print_result(result);
+    plot_eigenfrequencies(result);
 
     /* TODO: make freer functions */
     free(sim.beads);

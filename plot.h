@@ -10,4 +10,6 @@
 
 void print_result(Result result);
 
+void plot_eigenfrequencies(Result result);
+
 #endif

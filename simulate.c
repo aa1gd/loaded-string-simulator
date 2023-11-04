@@ -31,8 +31,13 @@ int main(int argc, char *argv[])
 
     result = asolve(sim);
 
+    /*
     print_result(result);
     plot_eigenfrequencies(result);
+    plot_mode_amplitudes(result);
+    */
+
+    animate_string(result, sim.connections);
 
     /* TODO: make freer functions */
     free(sim.beads);

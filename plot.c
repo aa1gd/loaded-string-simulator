@@ -10,7 +10,11 @@
 #include <unistd.h>
 
 #include "plot.h"
-#include "./gnuplot_i/gnuplot_i.h"
+
+/* Simulation doesn't run in real time. */
+#define TIMESTEP 0.02 /* calculate a frame every TIMESTEP seconds */
+#define RUNTIME 100 /* number of seconds to be simulated */
+#define FPS 30
 
 void print_result(Result result)
 {
@@ -44,13 +48,13 @@ void print_result(Result result)
 
 void plot_eigenfrequencies(Result result)
 {
-    gnuplot_ctrl *gplot;
-    double *modes;
+    int *modes;
     int i;
+    FILE *gnuplot;
 
     assert(result.eigenfrequencies != NULL);
 
-    modes = malloc(result.num_modes * sizeof(double));
+    modes = malloc(result.num_modes * sizeof(int));
     /* Skipping error checking */
 
     for (i = 0; i < result.num_modes; i++)
@@ -58,33 +62,40 @@ void plot_eigenfrequencies(Result result)
 
     printf("Plotting eigenfrequencies.\n");
 
-    gplot = gnuplot_init();
-    gnuplot_setterm(gplot, "qt", 900, 400);
-    gnuplot_set_axislabel(gplot, "x", "Mode Number");
-    gnuplot_set_axislabel(gplot, "y", "Eigenfrequency (rad/s)");
-    gnuplot_fancy_setstyle(gplot, "points", -2, "", -2, 7, 3);
-    gnuplot_plot_coordinates(gplot, modes, result.eigenfrequencies,
-            result.num_modes, "Eigenfrequencies");
+    gnuplot = popen("gnuplot", "w");
+    if (!gnuplot) {
+        perror("popen");
+        exit(EXIT_FAILURE);
+    }
+
+    fprintf(gnuplot, "set title 'Eigenfrequencies vs. Mode Number'\n");
+    fprintf(gnuplot, "set xlabel 'Mode Number'\n");
+    fprintf(gnuplot, "set ylabel 'Eigenfrequency (rad/s)'\n");
+    fprintf(gnuplot, "plot '-' u 1:2 t 'Eigenfrequencies' w points pt 7 ps 2\n");
+    for (i = 0; i < result.num_modes; i++)
+        fprintf(gnuplot, "%d %lf\n", modes[i], result.eigenfrequencies[i]);
+    fprintf(gnuplot, "e\n");
+    fflush(gnuplot);
 
     printf("Press Enter to continue.\n");
     while (getchar() != '\n') {}
 
+    pclose(gnuplot);
     free(modes);
-    gnuplot_close(gplot);
 
     return;
 }
 
-/* TODO something's wrong with plotting */
 void plot_mode_amplitudes(Result result)
 {
-    gnuplot_ctrl *gplot;
-    double *modes, *amplitudes;
+    int *modes;
+    double *amplitudes;
     int i;
+    FILE *gnuplot;
 
     assert(result.coefficients != NULL);
 
-    modes = malloc(result.num_modes * sizeof(double));
+    modes = malloc(result.num_modes * sizeof(int));
     amplitudes = malloc(result.num_modes * sizeof(double));
     /* Skipping error checking */
 
@@ -93,60 +104,56 @@ void plot_mode_amplitudes(Result result)
         modes[i] = i + 1;
         amplitudes[i] = sqrt(pow(result.coefficients[i].a, 2)
                 + pow(result.coefficients[i].b, 2));
-        printf("Mode #%.2lf Amp %.2lf\n", modes[i], amplitudes[i]);
+        /*printf("Mode #%d Amp %.2lf\n", modes[i], amplitudes[i]);*/
     }
 
     printf("Plotting mode amplitudes.\n");
 
-    gplot = gnuplot_init();
-    gnuplot_setterm(gplot, "qt", 900, 400);
-    gnuplot_set_axislabel(gplot, "x", "Mode Number");
-    gnuplot_set_axislabel(gplot, "y", "Amplitude");
-    gnuplot_setstyle(gplot, "points");
+    gnuplot = popen("gnuplot", "w");
+    if (!gnuplot) {
+        perror("popen");
+        exit(EXIT_FAILURE);
+    }
 
-    gnuplot_cmd(gplot, "set style fill solid 1.0");
-    gnuplot_cmd(gplot, "set boxwidth 0.75 relative");
-    /*
-    gnuplot_plot_coordinates(gplot, modes, amplitudes,
-            result.num_modes, "Mode Amplitudes");
-            */
-
-    double a[16] = {0};
-    gnuplot_plot_coordinates(gplot, modes, a,
-            result.num_modes, "Mode Amplitudes");
+    fprintf(gnuplot, "set title 'Mode Amplitudes'\n");
+    fprintf(gnuplot, "set xlabel 'Mode Number'\n");
+    fprintf(gnuplot, "set ylabel 'Amplitude (m)'\n");
+    fprintf(gnuplot, "set style fill solid 1.0\n");
+    fprintf(gnuplot, "set boxwidth 0.75 relative\n");
+    fprintf(gnuplot, "plot '-' u 1:2 t 'Amplitude' w boxes\n");
+    for (i = 0; i < result.num_modes; i++)
+        fprintf(gnuplot, "%d %lf\n", modes[i], amplitudes[i]);
+    fprintf(gnuplot, "e\n");
+    fflush(gnuplot);
 
     printf("Press Enter to continue.\n");
     while (getchar() != '\n') {}
 
+    pclose(gnuplot);
     free(modes);
     free(amplitudes);
-    gnuplot_close(gplot);
 
     return;
 }
     
 void animate_string(Result result, double *connections)
 {
-    gnuplot_ctrl *gplot;
     double *x, *y;
-    double t; /* time */
-    const double ts = 0.02; /* timestep */
-    const double runtime = 100;
+    double t = 0; /* time */
     int i, j;
+    double yrange = 0;
+    FILE *gnuplot;
 
     assert(result.eigenfrequencies != NULL);
     assert(result.eigenvectors != NULL);
     assert(result.coefficients != NULL);
     assert(connections != NULL);
 
-    /* We add two more beads: a new first one and new last one that remain
-     * stationary */
-    /* Plus two more for the temporary hack described below */
-    x = malloc((result.num_modes + 2 + 2) * sizeof(double));
-    y = malloc((result.num_modes + 2 + 2) * sizeof(double));
+    /* We add two more beads as endpoints */
+    x = malloc((result.num_modes + 2) * sizeof(double));
+    y = malloc((result.num_modes + 2) * sizeof(double));
     /* Skipping error checking */
 
-    /* TODO: draw in the walls */
     /* Draw in the two fixed endpoints */
     x[0] = 0;
     for (i = 1; i <= result.num_modes + 1; i++)
@@ -154,33 +161,42 @@ void animate_string(Result result, double *connections)
     y[0] = 0;
     y[result.num_modes + 1] = 0;
 
-    /* A temporary hack to have fixed ranges: add two points at the end at +/-
-     * the max possible displacement */
-    x[result.num_modes + 2] = x[result.num_modes + 1] + 0.01;
-    x[result.num_modes + 3] = x[result.num_modes + 1] + 0.01;
-    y[result.num_modes + 2] = 1.5;
-    y[result.num_modes + 3] = -1.5;
+    /* The max displacement cannot be larger than the sum of the coefficients;
+     * so use the sum of coefficients as lower and upper y range */
+    for (i = 0; i < result.num_modes; i++)
+        yrange += sqrt(pow(result.coefficients[i].a, 2)
+                + pow(result.coefficients[i].b, 2));
 
-    /* check displacements */
+    /* This is an interesting problem: given the amplitudes and frequencies,
+     * what's the average amplitude of the superimposed wave going to be? The
+     * above overestimates yrange by a lot in cases with many modes. */
+
+    /* Scaling down yrange - the sqrt is a guess */
+    yrange /= sqrt(result.num_modes);
+
+    /* TODO: potential solution is dynamically scaling y range */
+
+    /* check displacements - for debugging */
+    /*
     for (i = 0; i < result.num_modes + 2; i++)
         printf("Bead #%d: %.2lf\t", i, x[i]);
     printf("\n");
+    */
 
-    gplot = gnuplot_init();
-    gnuplot_setterm(gplot, "qt", 2000, 1000);
-    gnuplot_set_axislabel(gplot, "x", "x (m)");
-    gnuplot_set_axislabel(gplot, "y", "y (m)");
-    /* gnuplot_setstyle(gplot, "linespoints"); */
-    gnuplot_fancy_setstyle(gplot, "linespoints", -1, "blue", 4.0, 7, 3.0);
+    gnuplot = popen("gnuplot", "w");
+    if (!gnuplot) {
+        perror("popen");
+        exit(EXIT_FAILURE);
+    }
 
-    printf("Animating string.\n");
-    printf("Press Enter to stop animation.\n");
+    fprintf(gnuplot, "set title 'String Animation'\n");
+    fprintf(gnuplot, "set xlabel 'x (m)'\n");
+    fprintf(gnuplot, "set ylabel 'y (m)'\n");
+    fprintf(gnuplot, "set yrange [%lf:%lf]\n", -1 * yrange, yrange);
 
-    t = 0;
-    while (t < runtime)
+    /* TODO: press key to stop simulation */
+    while (t < RUNTIME)
     {
-        gnuplot_resetplot(gplot);
-
         /* i is bead number, j is mode number */
         for (i = 0; i < result.num_modes; i++)
         {
@@ -195,17 +211,20 @@ void animate_string(Result result, double *connections)
             }
         }
 
-        /* extra +2 is from the temporary hack */
-        gnuplot_plot_coordinates(gplot, x, y,
-                result.num_modes + 2 + 2, "Animation");
+        fprintf(gnuplot, "plot '-' u 1:2 w linespoints lw 4.0 pt 7 ps 3\n");
+        for (i = 0; i < result.num_modes + 2; i++)
+            fprintf(gnuplot, "%lf %lf\n", x[i], y[i]);
+        fprintf(gnuplot, "e\n");
+        fflush(gnuplot);
 
-        usleep(33 * 1000); /* 33ms -> 30FPS */
-        t += ts;
+        /* If running in real time, use usleep(1000000 * TIMESTEP) */
+        usleep(1000000 / FPS);
+        t += TIMESTEP;
     }
 
+    pclose(gnuplot);
     free(x);
     free(y);
-    gnuplot_close(gplot);
 
     return;
 }

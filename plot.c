@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include <math.h>
 #include <unistd.h>
@@ -12,9 +13,11 @@
 #include "plot.h"
 
 /* Simulation doesn't run in real time. */
-#define TIMESTEP 0.02 /* calculate a frame every TIMESTEP seconds */
+#define TIMESTEP 0.01 /* calculate a frame every TIMESTEP seconds */
 #define RUNTIME 100 /* number of seconds to be simulated */
 #define FPS 30
+
+#define MAX_INPUT_LENGTH 10
 
 void print_result(Result result)
 {
@@ -136,6 +139,72 @@ void plot_mode_amplitudes(Result result)
     return;
 }
     
+void plot_normal_modes(Result result, double *connections)
+{
+    double *x, *y;
+    int modenum; /* one indexed */
+    int i;
+    char str[MAX_INPUT_LENGTH];
+    FILE *gnuplot;
+
+    assert(result.eigenvectors != NULL);
+    assert(connections != NULL);
+
+    /* We add two more beads as endpoints */
+    x = malloc((result.num_modes + 2) * sizeof(double));
+    y = malloc((result.num_modes + 2) * sizeof(double));
+    /* Skipping error checking */
+
+    /* Draw in the two fixed endpoints */
+    x[0] = 0;
+    for (i = 1; i <= result.num_modes + 1; i++)
+        x[i] = x[i - 1] + connections[i - 1];
+    y[0] = 0;
+    y[result.num_modes + 1] = 0;
+
+    gnuplot = popen("gnuplot", "w");
+    if (!gnuplot) {
+        perror("popen");
+        exit(EXIT_FAILURE);
+    }
+
+    fprintf(gnuplot, "set title 'Normal Modes'\n");
+    fprintf(gnuplot, "set xlabel 'x (m)'\n");
+    fprintf(gnuplot, "set ylabel 'y (m)'\n");
+    fprintf(gnuplot, "set yrange [-1:1]\n");
+
+    strcpy(str, "1");
+    do
+    {
+        printf("\n");
+        if (strcmp(str, "\n") == 0)
+            modenum++;
+        else
+            modenum = atoi(str);
+
+        if (modenum > result.num_modes || modenum <= 0)
+            break;
+
+        for (i = 0; i < result.num_modes; i++)
+            y[i + 1] = result.eigenvectors[i][modenum - 1];
+
+        fprintf(gnuplot, "plot '-' u 1:2 t 'Mode #%d' w linespoints lw 4.0 pt 7 \
+                ps 3\n", modenum);
+        for (i = 0; i < result.num_modes + 2; i++)
+            fprintf(gnuplot, "%lf %lf\n", x[i], y[i]);
+
+        fprintf(gnuplot, "e\n");
+        fflush(gnuplot);
+
+        printf("Press ENTER to go to next normal mode. Enter number 1-%d to display that mode. Enter 'q' to quit: ", result.num_modes);
+    }
+    while (strcmp(fgets(str, MAX_INPUT_LENGTH, stdin), "q\n"));
+
+    pclose(gnuplot);
+    free(x);
+    free(y);
+}
+
 void animate_string(Result result, double *connections)
 {
     double *x, *y;

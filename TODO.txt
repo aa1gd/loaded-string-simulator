@@ -1,5 +1,5 @@
 Simulation setup helper script
 Add comments. A lot of comments.
-Display normal modes
 Implement nsolve, apply FFT to determine modes and amplitudes
-Fix mode amplitude display
+Distinguish between string and spring
+GIF creation

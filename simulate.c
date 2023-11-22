@@ -31,11 +31,12 @@ int main(int argc, char *argv[])
 
     result = asolve(sim);
 
-    /*print_result(result);*/
+    print_result(result);
     /*plot_eigenfrequencies(result);*/
-    plot_mode_amplitudes(result);
+    /*plot_mode_amplitudes(result);*/
+    plot_normal_modes(result, sim.connections); /* TODO: work for springs */
 
-    animate_string(result, sim.connections);
+    animate_string(result, sim.connections); /* TODO: work for springs */
 
     /* TODO: make freer functions */
     free(sim.beads);

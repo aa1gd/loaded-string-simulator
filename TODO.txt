@@ -1,5 +1,4 @@
 Simulation setup helper script
 Add comments. A lot of comments.
 Implement nsolve, apply FFT to determine modes and amplitudes
-Distinguish between string and spring
 GIF creation

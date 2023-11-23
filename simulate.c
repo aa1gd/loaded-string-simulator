@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "types.h"
 #include "importdata.h"
@@ -16,27 +17,52 @@ int main(int argc, char *argv[])
 {
     Simulation sim;
     Result result;
+    int argnum;
 
     /* Check if a filename has been specified in the command */
     if (argc < 2)
     {
-        printf("Missing Filename\n");
+        fprintf(stderr, "Missing filename.\n");
         return EXIT_FAILURE;
     }
-    else
+
+    if (import_data(argv[argc - 1], &sim))
     {
-        if (import_data(argv[argc - 1], &sim))
-            return EXIT_FAILURE;
+        fprintf(stderr, "Failed to import data.\n");
+        return EXIT_FAILURE;
     }
 
     result = asolve(sim);
 
-    print_result(result);
-    /*plot_eigenfrequencies(result);*/
-    /*plot_mode_amplitudes(result);*/
-    plot_normal_modes(result, sim.connections); /* TODO: work for springs */
+    /* print results if no flags specified */
+    if (argc == 2)
+        print_result(result);
 
-    animate_string(result, sim.connections); /* TODO: work for springs */
+    for (argnum = 1; argnum < argc - 1; argnum++)
+    {
+        if (!strcmp(argv[argnum], "-p"))
+            print_result(result);
+        else if (!strcmp(argv[argnum], "-e"))
+            plot_eigenfrequencies(result);
+        else if (!strcmp(argv[argnum], "-a"))
+            plot_mode_amplitudes(result);
+        else if (!strcmp(argv[argnum], "-n"))
+            plot_normal_modes(result, sim);
+        else if (!strcmp(argv[argnum], "-s"))
+        {
+            double time_scale; /* defaults to real time if not specified */
+            if ((time_scale = atof(argv[argnum + 1])) != 0)
+                argnum++;
+            else
+            {
+                fprintf(stderr, "No time scale specified, default to 1.\n");
+                time_scale = 1.0;
+            }
+            animate(result, sim, time_scale);
+        }
+        else
+            fprintf(stderr, "Invalid flag.\n");
+    }
 
     /* TODO: make freer functions */
     free(sim.beads);

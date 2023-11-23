@@ -15,9 +15,49 @@
 /* Simulation doesn't run in real time. */
 #define TIMESTEP 0.01 /* calculate a frame every TIMESTEP seconds */
 #define RUNTIME 100 /* number of seconds to be simulated */
-#define FPS 30
 
 #define MAX_INPUT_LENGTH 10
+
+#define LINEWIDTH 3.0
+#define DEFAULT_POINTSIZE 3.0
+#define MAX_POINTSIZE 5.0
+#define MIN_POINTSIZE 2.0
+
+/* Calculates a pointsize relative to the mass of the bead */
+static double calc_pointsize(Simulation sim, int mass_index)
+{
+    double pointsize;
+    double max_mass, min_mass;
+    double per; /* Percentile mass of the bead */
+    int i;
+
+    max_mass = sim.beads[0].mass;
+    min_mass = sim.beads[0].mass;
+    for (i = 0; i < sim.num_beads; i++)
+    {
+        if (sim.beads[i].mass > max_mass)
+            max_mass = sim.beads[i].mass;
+        if (sim.beads[i].mass < min_mass)
+            min_mass = sim.beads[i].mass;
+    }
+
+    if (max_mass != min_mass)
+        per = (sim.beads[mass_index].mass - min_mass) / (max_mass - min_mass);
+    else
+        per = 1.0;
+
+    pointsize = MIN_POINTSIZE + (per * (MAX_POINTSIZE - MIN_POINTSIZE));
+
+    /* If there's a bunch of beads, we scale down the pointsize */
+    if (sim.num_beads > 100)
+        pointsize /= 2;
+
+    /* No size for massless beads */
+    if (sim.beads[mass_index].mass == 0.0)
+        pointsize = 0.0;
+
+    return pointsize;
+}
 
 void print_result(Result result)
 {
@@ -74,7 +114,7 @@ void plot_eigenfrequencies(Result result)
     fprintf(gnuplot, "set title 'Eigenfrequencies vs. Mode Number'\n");
     fprintf(gnuplot, "set xlabel 'Mode Number'\n");
     fprintf(gnuplot, "set ylabel 'Eigenfrequency (rad/s)'\n");
-    fprintf(gnuplot, "plot '-' u 1:2 t 'Eigenfrequencies' w points pt 7 ps 2\n");
+    fprintf(gnuplot, "plot '-' u 1:2 t 'Eigenfrequencies' w points pt 7 ps %f\n", DEFAULT_POINTSIZE);
     for (i = 0; i < result.num_modes; i++)
         fprintf(gnuplot, "%d %lf\n", modes[i], result.eigenfrequencies[i]);
     fprintf(gnuplot, "e\n");
@@ -139,28 +179,43 @@ void plot_mode_amplitudes(Result result)
     return;
 }
     
-void plot_normal_modes(Result result, double *connections)
+void plot_normal_modes(Result result, Simulation sim)
 {
-    double *x, *y;
+    double *x, *y, *sizes;
     int modenum; /* one indexed */
     int i;
     char str[MAX_INPUT_LENGTH];
     FILE *gnuplot;
 
     assert(result.eigenvectors != NULL);
-    assert(connections != NULL);
+    assert(sim.connections != NULL);
 
     /* We add two more beads as endpoints */
     x = malloc((result.num_modes + 2) * sizeof(double));
     y = malloc((result.num_modes + 2) * sizeof(double));
+    sizes = malloc((result.num_modes + 2) * sizeof(double));
     /* Skipping error checking */
 
     /* Draw in the two fixed endpoints */
     x[0] = 0;
-    for (i = 1; i <= result.num_modes + 1; i++)
-        x[i] = x[i - 1] + connections[i - 1];
     y[0] = 0;
     y[result.num_modes + 1] = 0;
+    sizes[0] = 0.0;
+    sizes[result.num_modes + 1] = 0.0;
+
+    /* Strings have variable spacing */
+    if (sim.sim_type == STRING)
+        for (i = 1; i <= result.num_modes + 1; i++)
+            x[i] = x[i - 1] + sim.connections[i - 1];
+
+    /* Springs have equal spacing */
+    if (sim.sim_type == SPRING)
+        for (i = 1; i <= result.num_modes + 1; i++)
+            x[i] = x[i - 1] + 1;
+
+    /* Determine bead sizes */
+    for (i = 1; i <= result.num_modes; i++)
+        sizes[i] = calc_pointsize(sim, i - 1);
 
     gnuplot = popen("gnuplot", "w");
     if (!gnuplot) {
@@ -188,10 +243,10 @@ void plot_normal_modes(Result result, double *connections)
         for (i = 0; i < result.num_modes; i++)
             y[i + 1] = result.eigenvectors[i][modenum - 1];
 
-        fprintf(gnuplot, "plot '-' u 1:2 t 'Mode #%d' w linespoints lw 4.0 pt 7 \
-                ps 3\n", modenum);
+        fprintf(gnuplot, "plot '-' u 1:2:3 t 'Mode #%d' ", modenum);
+        fprintf(gnuplot, "w linespoints lw %f pt 7 ps variable\n", LINEWIDTH);
         for (i = 0; i < result.num_modes + 2; i++)
-            fprintf(gnuplot, "%lf %lf\n", x[i], y[i]);
+            fprintf(gnuplot, "%lf %lf %lf\n", x[i], y[i], sizes[i]);
 
         fprintf(gnuplot, "e\n");
         fflush(gnuplot);
@@ -203,32 +258,37 @@ void plot_normal_modes(Result result, double *connections)
     pclose(gnuplot);
     free(x);
     free(y);
+    free(sizes);
 }
 
-void animate_string(Result result, double *connections)
+static void animate_string(Result result, Simulation sim, double time_scale)
 {
-    double *x, *y;
+    double *x, *y, *sizes;
     double t = 0; /* time */
     int i, j;
     double yrange = 0;
     FILE *gnuplot;
 
-    assert(result.eigenfrequencies != NULL);
-    assert(result.eigenvectors != NULL);
-    assert(result.coefficients != NULL);
-    assert(connections != NULL);
-
     /* We add two more beads as endpoints */
     x = malloc((result.num_modes + 2) * sizeof(double));
     y = malloc((result.num_modes + 2) * sizeof(double));
+    sizes = malloc((result.num_modes + 2) * sizeof(double));
     /* Skipping error checking */
 
     /* Draw in the two fixed endpoints */
     x[0] = 0;
-    for (i = 1; i <= result.num_modes + 1; i++)
-        x[i] = x[i - 1] + connections[i - 1];
     y[0] = 0;
     y[result.num_modes + 1] = 0;
+
+    /* Strings have variable spacing */
+    for (i = 1; i <= result.num_modes + 1; i++)
+        x[i] = x[i - 1] + sim.connections[i - 1];
+
+    /* Determine bead sizes */
+    sizes[0] = 0.0;
+    sizes[result.num_modes + 1] = 0.0;
+    for (i = 1; i <= result.num_modes; i++)
+        sizes[i] = calc_pointsize(sim, i - 1);
 
     /* The max displacement cannot be larger than the sum of the coefficients;
      * so use the sum of coefficients as lower and upper y range */
@@ -245,13 +305,6 @@ void animate_string(Result result, double *connections)
 
     /* TODO: potential solution is dynamically scaling y range */
 
-    /* check displacements - for debugging */
-    /*
-    for (i = 0; i < result.num_modes + 2; i++)
-        printf("Bead #%d: %.2lf\t", i, x[i]);
-    printf("\n");
-    */
-
     gnuplot = popen("gnuplot", "w");
     if (!gnuplot) {
         perror("popen");
@@ -264,6 +317,7 @@ void animate_string(Result result, double *connections)
     fprintf(gnuplot, "set yrange [%lf:%lf]\n", -1 * yrange, yrange);
 
     /* TODO: press key to stop simulation */
+    printf("Press CTRL-c to stop simulation.\n");
     while (t < RUNTIME)
     {
         /* i is bead number, j is mode number */
@@ -280,20 +334,116 @@ void animate_string(Result result, double *connections)
             }
         }
 
-        fprintf(gnuplot, "plot '-' u 1:2 w linespoints lw 4.0 pt 7 ps 3\n");
+        fprintf(gnuplot, "plot '-' u 1:2:3 w linespoints lw %f pt 7 ps variable\n", LINEWIDTH);
         for (i = 0; i < result.num_modes + 2; i++)
-            fprintf(gnuplot, "%lf %lf\n", x[i], y[i]);
+            fprintf(gnuplot, "%lf %lf %lf\n", x[i], y[i], sizes[i]);
+
         fprintf(gnuplot, "e\n");
         fflush(gnuplot);
 
-        /* If running in real time, use usleep(1000000 * TIMESTEP) */
-        usleep(1000000 / FPS);
+        usleep(1000000 * TIMESTEP / time_scale);
         t += TIMESTEP;
     }
 
     pclose(gnuplot);
     free(x);
     free(y);
+    free(sizes);
+
+    return;
+}
+
+static void animate_spring(Result result, Simulation sim, double time_scale)
+{
+    double *x, *sizes;
+    double t = 0; /* time */
+    int i, j;
+    double spacing = 0;
+    FILE *gnuplot;
+
+    /* We add two more beads as endpoints */
+    x = malloc((result.num_modes + 2) * sizeof(double));
+    sizes = malloc((result.num_modes + 2) * sizeof(double));
+    /* Skipping error checking */
+
+    /* Calculate spacing needed */
+    for (i = 0; i < result.num_modes; i++)
+        spacing += sqrt(pow(result.coefficients[i].a, 2)
+                + pow(result.coefficients[i].b, 2));
+    spacing /= sqrt(result.num_modes);
+    spacing *= 2;
+    spacing *= 1.5; /* leave extra spacing between beads */
+
+    /* Springs have equal spacing between beads */
+    for (i = 0; i < result.num_modes + 2; i++)
+        x[i] = i * spacing;
+
+    /* Determine bead sizes */
+    sizes[0] = 0.0;
+    sizes[result.num_modes + 1] = 0.0;
+    for (i = 1; i <= result.num_modes; i++)
+        sizes[i] = calc_pointsize(sim, i - 1);
+
+    gnuplot = popen("gnuplot", "w");
+    if (!gnuplot) {
+        perror("popen");
+        exit(EXIT_FAILURE);
+    }
+
+    fprintf(gnuplot, "set title 'Spring Animation'\n");
+    fprintf(gnuplot, "set xlabel 'x (m)'\n");
+    fprintf(gnuplot, "set yrange [-1:1]\n");
+
+    /* TODO: press key to stop simulation */
+    printf("Press CTRL-c to stop simulation.\n");
+    while (t < RUNTIME)
+    {
+        /* i is bead number, j is mode number */
+        for (i = 0; i < result.num_modes; i++)
+        {
+            /* Equilibrium position */
+            x[i + 1] = (i + 1) * spacing;
+
+            /* Add contributions from each normal mode */
+            for (j = 0; j < result.num_modes; j++)
+            {
+                x[i + 1] += result.coefficients[j].a * result.eigenvectors[i][j]
+                    * cos(result.eigenfrequencies[j] * t);
+                x[i + 1] += result.coefficients[j].b * result.eigenvectors[i][j]
+                    * sin(result.eigenfrequencies[j] * t);
+            }
+        }
+
+        fprintf(gnuplot, "plot '-' u 1:2:3 w linespoints lw %f pt 7 ps variable\n", LINEWIDTH);
+        for (i = 0; i < result.num_modes + 2; i++)
+            fprintf(gnuplot, "%lf 0.0 %lf\n", x[i], sizes[i]);
+
+        fprintf(gnuplot, "e\n");
+        fflush(gnuplot);
+
+        usleep(1000000 * TIMESTEP / time_scale);
+        t += TIMESTEP;
+    }
+
+    pclose(gnuplot);
+    free(x);
+    free(sizes);
+
+    return;
+}
+
+void animate(Result result, Simulation sim, double time_scale)
+{
+    assert(result.eigenfrequencies != NULL);
+    assert(result.eigenvectors != NULL);
+    assert(result.coefficients != NULL);
+    assert(sim.connections != NULL);
+
+    if (sim.sim_type == STRING)
+        animate_string(result, sim, time_scale);
+
+    if (sim.sim_type == SPRING)
+        animate_spring(result, sim, time_scale);
 
     return;
 }

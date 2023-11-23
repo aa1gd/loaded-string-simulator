@@ -14,8 +14,8 @@ void plot_eigenfrequencies(Result result);
 
 void plot_mode_amplitudes(Result result);
 
-void plot_normal_modes(Result result, double *connections);
+void plot_normal_modes(Result result, Simulation sim);
 
-void animate_string(Result result, double *connections);
+void animate(Result result, Simulation sim, double time_scale);
 
 #endif

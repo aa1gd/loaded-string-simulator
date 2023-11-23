@@ -18,6 +18,7 @@ int main(int argc, char *argv[])
     Simulation sim;
     Result result;
     int argnum;
+    int i;
 
     /* Check if a filename has been specified in the command */
     if (argc < 2)
@@ -46,7 +47,7 @@ int main(int argc, char *argv[])
             plot_eigenfrequencies(result);
         else if (!strcmp(argv[argnum], "-a"))
             plot_mode_amplitudes(result);
-        else if (!strcmp(argv[argnum], "-n"))
+        else if (!strcmp(argv[argnum], "-m"))
             plot_normal_modes(result, sim);
         else if (!strcmp(argv[argnum], "-s"))
         {
@@ -64,16 +65,13 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Invalid flag.\n");
     }
 
-    /* TODO: make freer functions */
     free(sim.beads);
     free(sim.connections);
-    
-    /*
     free(result.eigenfrequencies);
     free(result.coefficients);
-    */
-
-    /* free eigenvectors in a for loop */
+    for (i = 0; i < result.num_modes; i++)
+        free(result.eigenvectors[i]);
+    free(result.eigenvectors);
 
     return EXIT_SUCCESS;
 }

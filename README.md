@@ -16,6 +16,8 @@ GIFFLAGS in the makefile. Then run
 make
 ```
 
+Change #define statements in plot.c to change the appearance of plots.
+
 ## Usage
 
 Setup simulation parameters, following the pattern in either
@@ -53,11 +55,17 @@ only use following -s option. Saves animation as a .gif
 ### Band Gap
 ![Band Gap](examples/stringbandgapeigenfrequencies.png)
 
-### Coupled Springs
-![Coupled Springs](examples/twomassspring.gif)
+### Mode Amplitudes
+![Mode Amplitudes](examples/densitychangeamplitudes.png)
+
+### Individual Normal Modes
+![Individual Normal Modes](examples/densitychangemode6.png)
 
 ### Wave Propagation
 ![Wave Propagation](examples/densitychange.gif)
+
+### Coupled Springs
+![Coupled Springs](examples/twomassspring.gif)
 
 ## Licensing
 

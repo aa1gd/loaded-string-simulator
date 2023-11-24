@@ -1,6 +1,6 @@
 # loaded-string-simulator
 
-![Loaded String][examples/pset6q3.gif]
+![Loaded String](examples/pset6q3.gif)
 
 loaded-string-simulator is a physics simulator that can simulate loaded strings
 and mass-spring coupled oscillators. It uses the GNU Scientific Library (GSL)
@@ -47,6 +47,17 @@ animates the simulation at a speed TIME\_SCALE x real speed. TIME\_SCALE default
 only use following -s option. Saves animation as a .gif  
 
 -p option is used if no options specified
+
+## Examples
+
+### Band Gap
+![Band Gap](examples/stringbandgapeigenfrequencies.png)
+
+### Coupled Springs
+![Coupled Springs](examples/twomassspring.gif)
+
+### Wave Propagation
+![Wave Propagation](examples/densitychange.gif)
 
 ## Licensing
 

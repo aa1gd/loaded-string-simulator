@@ -6,6 +6,8 @@
 #ifndef TYPES_INCLUDED
 #define TYPES_INCLUDED
 
+#include <limits.h>
+
 enum SimType {STRING, SPRING}; /* Simulation types */
 
 typedef struct bead
@@ -17,6 +19,8 @@ typedef struct bead
 
 typedef struct simulation
 {
+    char filename[NAME_MAX + 1]; /* prefix of simulation input file name */
+    enum SimType sim_type; /* Either STRING or SPRING */
     Bead *beads; /* Array containing num_beads beads */
     double *connections; /* Array of length num_beads + 1. For string
                             simulations, represents distance between beads in m.
@@ -24,7 +28,6 @@ typedef struct simulation
                             of springs between beads in N/m. */
     double tension; /* For string simulations, the tension in the string in N */
     int num_beads; /* Number of beads */
-    enum SimType sim_type; /* Either STRING or SPRING */
 } Simulation;
 
 typedef struct coefficient

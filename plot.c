@@ -16,12 +16,75 @@
                               highest frequency normal mode */
 #define RUNTIME 100 /* number of seconds to be simulated */
 
-#define MAX_INPUT_LENGTH 10
+#define MAX_INPUT_LENGTH 255
 
 #define LINEWIDTH 3.0
 #define DEFAULT_POINTSIZE 3.0
 #define MAX_POINTSIZE 5.0
 #define MIN_POINTSIZE 2.0
+
+#define MAX_GIF_FRAMES 500 /* the max maximum is 999 due to file naming */
+#define PNG_X_SIZE 1920
+#define PNG_Y_SIZE 1080
+
+/* Makes a gif out of the generated png files and removes the png files. delay
+ * is in seconds. */
+static void make_gif(const char *filename, double delay)
+{
+    char cmd[MAX_INPUT_LENGTH];
+    FILE *prog;
+
+    printf("Making gif... this may take a while\n");
+
+    /* ImageMagick's convert is slow */
+#ifdef IMAGEMAGICK
+    sprintf(cmd, "convert -delay %d -loop 0 %s*.png %s.gif", (int)(100 * delay), filename, filename);
+    printf("%s\n", cmd);
+    prog = popen(cmd, "r");
+    if (!prog) {
+        perror("popen");
+        exit(EXIT_FAILURE);
+    }
+    pclose(prog);
+#endif
+
+    /* FFMpeg is fast */
+#ifdef FFMPEG
+    sprintf(cmd, "ffmpeg -hide_banner -i %s%%03d.png -vf palettegen palette.png", filename);
+    /*printf("%s\n", cmd);*/
+    prog = popen(cmd, "r");
+    if (!prog) {
+        perror("popen");
+        exit(EXIT_FAILURE);
+    }
+    pclose(prog);
+
+    sprintf(cmd, "ffmpeg -hide_banner -thread_queue_size 1024 -framerate %d -i %s%%03d.png -i palette.png -lavfi paletteuse %s.gif", (int)(1 / delay), filename, filename);
+    /*printf("%s\n", cmd);*/
+    prog = popen(cmd, "r");
+    if (!prog) {
+        perror("popen");
+        exit(EXIT_FAILURE);
+    }
+    pclose(prog);
+#endif
+
+#ifdef FFMPEG
+    sprintf(cmd, "rm %s*.png palette.png", filename);
+#else
+    sprintf(cmd, "rm %s*.png", filename);
+#endif
+
+    /*printf("%s\n", cmd);*/
+    prog = popen(cmd, "r");
+    if (!prog) {
+        perror("popen");
+        exit(EXIT_FAILURE);
+    }
+    pclose(prog);
+
+    return;
+}
 
 /* Calculates and returns an appropriate timestep for the simulation, depending
  * on the highest eigenfrequency of the system */
@@ -30,7 +93,6 @@ static double calc_timestep(Result result)
     return (2 * M_PI) / (result.eigenfrequencies[result.num_modes - 1]
             * SIM_GRANULARITY);
 }
-
 
 /* Calculates and returns a pointsize relative to the mass of the bead */
 static double calc_pointsize(Simulation sim, int mass_index)
@@ -270,11 +332,13 @@ void plot_normal_modes(Result result, Simulation sim)
     free(sizes);
 }
 
-static void animate_string(Result result, Simulation sim, double time_scale)
+static void animate_string(Result result, Simulation sim, double time_scale,
+        bool save_gif)
 {
     double *x, *y, *sizes;
     double t = 0; /* time */
     int i, j;
+    int frame = 1; /* used for gif */
     double yrange = 0;
     double timestep;
     FILE *gnuplot;
@@ -328,8 +392,11 @@ static void animate_string(Result result, Simulation sim, double time_scale)
     fprintf(gnuplot, "set ylabel 'y (m)'\n");
     fprintf(gnuplot, "set yrange [%lf:%lf]\n", -1 * yrange, yrange);
 
+    if (save_gif)
+        fprintf(gnuplot, "set term pngcairo size %d,%d\n", PNG_X_SIZE, PNG_Y_SIZE);
+
     printf("Press CTRL-c to stop simulation.\n");
-    while (t < RUNTIME)
+    while (t < RUNTIME && frame <= MAX_GIF_FRAMES)
     {
         /* i is bead number, j is mode number */
         for (i = 0; i < result.num_modes; i++)
@@ -345,14 +412,18 @@ static void animate_string(Result result, Simulation sim, double time_scale)
             }
         }
 
-        fprintf(gnuplot, "plot '-' u 1:2:3 w linespoints lw %f pt 7 ps variable\n", LINEWIDTH);
+        if (save_gif)
+            fprintf(gnuplot, "set output \"%s%03d.png\"\n", sim.filename, frame++);
+
+        fprintf(gnuplot, "plot '-' u 1:2:3 t 'Time: %.2lfs' w linespoints lw %f pt 7 ps variable\n", t, LINEWIDTH);
         for (i = 0; i < result.num_modes + 2; i++)
             fprintf(gnuplot, "%lf %lf %lf\n", x[i], y[i], sizes[i]);
 
         fprintf(gnuplot, "e\n");
         fflush(gnuplot);
 
-        usleep(1000000 * timestep / time_scale);
+        if (!save_gif)
+            usleep(1000000 * timestep / time_scale);
         t += timestep;
     }
 
@@ -361,14 +432,19 @@ static void animate_string(Result result, Simulation sim, double time_scale)
     free(y);
     free(sizes);
 
+    if (save_gif)
+        make_gif(sim.filename, timestep / time_scale);
+
     return;
 }
 
-static void animate_spring(Result result, Simulation sim, double time_scale)
+static void animate_spring(Result result, Simulation sim, double time_scale,
+        bool save_gif)
 {
     double *x, *sizes;
     double t = 0; /* time */
     int i, j;
+    int frame = 1;
     double spacing = 0;
     double timestep;
     FILE *gnuplot;
@@ -408,8 +484,11 @@ static void animate_spring(Result result, Simulation sim, double time_scale)
     fprintf(gnuplot, "set xlabel 'x (m)'\n");
     fprintf(gnuplot, "set yrange [-1:1]\n");
 
+    if (save_gif)
+        fprintf(gnuplot, "set term pngcairo size %d,%d\n", PNG_X_SIZE, PNG_Y_SIZE);
+
     printf("Press CTRL-c to stop simulation.\n");
-    while (t < RUNTIME)
+    while (t < RUNTIME && frame <= MAX_GIF_FRAMES)
     {
         /* i is bead number, j is mode number */
         for (i = 0; i < result.num_modes; i++)
@@ -427,14 +506,18 @@ static void animate_spring(Result result, Simulation sim, double time_scale)
             }
         }
 
-        fprintf(gnuplot, "plot '-' u 1:2:3 w linespoints lw %f pt 7 ps variable\n", LINEWIDTH);
+        if (save_gif)
+            fprintf(gnuplot, "set output \"%s%03d.png\"\n", sim.filename, frame++);
+
+        fprintf(gnuplot, "plot '-' u 1:2:3 t 'Time: %.2lfs' w linespoints lw %f pt 7 ps variable\n", t, LINEWIDTH);
         for (i = 0; i < result.num_modes + 2; i++)
             fprintf(gnuplot, "%lf 0.0 %lf\n", x[i], sizes[i]);
 
         fprintf(gnuplot, "e\n");
         fflush(gnuplot);
 
-        usleep(1000000 * timestep / time_scale);
+        if (!save_gif)
+            usleep(1000000 * timestep / time_scale);
         t += timestep;
     }
 
@@ -442,10 +525,13 @@ static void animate_spring(Result result, Simulation sim, double time_scale)
     free(x);
     free(sizes);
 
+    if (save_gif)
+        make_gif(sim.filename, timestep / time_scale);
+
     return;
 }
 
-void animate(Result result, Simulation sim, double time_scale)
+void animate(Result result, Simulation sim, double time_scale, bool save_gif)
 {
     assert(result.eigenfrequencies != NULL);
     assert(result.eigenvectors != NULL);
@@ -453,11 +539,10 @@ void animate(Result result, Simulation sim, double time_scale)
     assert(sim.connections != NULL);
 
     if (sim.sim_type == STRING)
-        animate_string(result, sim, time_scale);
+        animate_string(result, sim, time_scale, save_gif);
 
     if (sim.sim_type == SPRING)
-        animate_spring(result, sim, time_scale);
+        animate_spring(result, sim, time_scale, save_gif);
 
     return;
-}
-    
+} 

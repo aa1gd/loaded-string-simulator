@@ -6,6 +6,7 @@
 #ifndef PLOT_INCLUDED
 #define PLOT_INCLUDED
 
+#include <stdbool.h>
 #include "types.h"
 
 /* Prints eigenfrequencies, eigenvectors, and coefficients of the simulation */
@@ -22,7 +23,8 @@ void plot_mode_amplitudes(Result result);
 void plot_normal_modes(Result result, Simulation sim);
 
 /* Animates the simulation, sped up/down by factor time_scale. If time_scale =
- * 1.0, the simulation plays at real speed. */
-void animate(Result result, Simulation sim, double time_scale);
+ * 1.0, the simulation plays at real speed. If save_gif is true, saves animation
+ * as a GIF. */
+void animate(Result result, Simulation sim, double time_scale, bool save_gif);
 
 #endif

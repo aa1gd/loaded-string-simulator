@@ -10,7 +10,7 @@
 
 #include "importdata.h"
 
-int import_data(const char *filename, Simulation *sim)
+int import_data(char *filename, Simulation *sim)
 {
     FILE *fp;
     char string_sim_type[7];
@@ -26,6 +26,11 @@ int import_data(const char *filename, Simulation *sim)
     }
 
     /*printf("Importing data from %s\n", filename);*/
+
+    if (strrchr(filename, '.') == NULL)
+        strcpy(sim->filename, filename);
+    *strrchr(filename, '.') = '\0';
+    strcpy(sim->filename, filename);
 
     fscanf(fp, "%6s\n", string_sim_type);
 

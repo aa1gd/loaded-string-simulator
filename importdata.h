@@ -10,7 +10,8 @@
 
 /* Given a simulation parameter file of the form described in
  * examplestringinput.txt or examplespringinput.txt, read in and store
- * simulation parameters into sim. Returns 1 if an error occured, 0 otherwise */
-int import_data(const char *filename, Simulation *sim);
+ * simulation parameters into sim. Changes filename.
+ * Returns 1 if an error occured, 0 otherwise */
+int import_data(char *filename, Simulation *sim);
 
 #endif

@@ -1,9 +1,13 @@
 # Compiler options
 CC = gcc
-# CFLAGS =
-CFLAGS = -g -Wall
-# CFLAGS = -D NDEBUG
+#CFLAGS = -g -Wall
+CFLAGS = -D NDEBUG
 GSLCFLAGS = -lgsl -lgslcblas -lm
+
+# Either ffmpeg or imagemagick has to be installed to make gifs. Enable the one
+# to be used (ffmpeg is faster)
+GIFFLAGS = -D FFMPEG
+#GIFFLAGS = -D IMAGEMAGICK
 
 # Build directory
 BUILD = build
@@ -25,4 +29,4 @@ $(BUILD)/importdata.o: importdata.c importdata.h types.h
 $(BUILD)/asolve.o: asolve.c asolve.h types.h
 	$(CC) $(CFLAGS) -c asolve.c -o $(BUILD)/asolve.o
 $(BUILD)/plot.o: plot.c plot.h types.h
-	$(CC) $(CFLAGS) -c plot.c -o $(BUILD)/plot.o
+	$(CC) $(CFLAGS) $(GIFFLAGS) -c plot.c -o $(BUILD)/plot.o

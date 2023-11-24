@@ -12,7 +12,8 @@
 
 #include "plot.h"
 
-#define TIMESTEP 0.01 /* calculate a frame every TIMESTEP seconds */
+#define SIM_GRANULARITY 32 /* number of frames to generate in one period of the
+                              highest frequency normal mode */
 #define RUNTIME 100 /* number of seconds to be simulated */
 
 #define MAX_INPUT_LENGTH 10
@@ -22,7 +23,16 @@
 #define MAX_POINTSIZE 5.0
 #define MIN_POINTSIZE 2.0
 
-/* Calculates a pointsize relative to the mass of the bead */
+/* Calculates and returns an appropriate timestep for the simulation, depending
+ * on the highest eigenfrequency of the system */
+static double calc_timestep(Result result)
+{
+    return (2 * M_PI) / (result.eigenfrequencies[result.num_modes - 1]
+            * SIM_GRANULARITY);
+}
+
+
+/* Calculates and returns a pointsize relative to the mass of the bead */
 static double calc_pointsize(Simulation sim, int mass_index)
 {
     double pointsize;
@@ -266,6 +276,7 @@ static void animate_string(Result result, Simulation sim, double time_scale)
     double t = 0; /* time */
     int i, j;
     double yrange = 0;
+    double timestep;
     FILE *gnuplot;
 
     /* We add two more beads as endpoints */
@@ -304,6 +315,8 @@ static void animate_string(Result result, Simulation sim, double time_scale)
 
     /* TODO: potential solution is dynamically scaling y range */
 
+    timestep = calc_timestep(result);
+
     gnuplot = popen("gnuplot", "w");
     if (!gnuplot) {
         perror("popen");
@@ -339,8 +352,8 @@ static void animate_string(Result result, Simulation sim, double time_scale)
         fprintf(gnuplot, "e\n");
         fflush(gnuplot);
 
-        usleep(1000000 * TIMESTEP / time_scale);
-        t += TIMESTEP;
+        usleep(1000000 * timestep / time_scale);
+        t += timestep;
     }
 
     pclose(gnuplot);
@@ -357,6 +370,7 @@ static void animate_spring(Result result, Simulation sim, double time_scale)
     double t = 0; /* time */
     int i, j;
     double spacing = 0;
+    double timestep;
     FILE *gnuplot;
 
     /* We add two more beads as endpoints */
@@ -381,6 +395,8 @@ static void animate_spring(Result result, Simulation sim, double time_scale)
     sizes[result.num_modes + 1] = 0.0;
     for (i = 1; i <= result.num_modes; i++)
         sizes[i] = calc_pointsize(sim, i - 1);
+
+    timestep = calc_timestep(result);
 
     gnuplot = popen("gnuplot", "w");
     if (!gnuplot) {
@@ -418,8 +434,8 @@ static void animate_spring(Result result, Simulation sim, double time_scale)
         fprintf(gnuplot, "e\n");
         fflush(gnuplot);
 
-        usleep(1000000 * TIMESTEP / time_scale);
-        t += TIMESTEP;
+        usleep(1000000 * timestep / time_scale);
+        t += timestep;
     }
 
     pclose(gnuplot);

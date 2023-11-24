@@ -17,6 +17,7 @@
 #include "asolve.h"
 
 /* Prints gsl_matrix m. Used for debugging. */
+#ifndef NDEBUG
 static void print_matrix(const gsl_matrix *m)
 {
     int i, j;
@@ -36,6 +37,7 @@ static void print_matrix(const gsl_matrix *m)
         printf("\n");
     }
 }
+#endif
 
 /* Creates and returns a diagonal square matrix of size num_beads x num_beads.
  * Diagonal entries correspond to masses of beads. Caller responsible for

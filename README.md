@@ -31,24 +31,24 @@ Then run
 
 ### Options
 -p, --print  
-prints eigenfrequencies, eigenvectors, and mode amplitudes in terminal  
+prints eigenfrequencies, eigenvectors, and mode amplitudes in terminal (default
+option if no options specified)  
 
 -e, --eigenfrequencies  
 plots eigenfrequencies  
 
--a, --amplitudes 
+-a, --amplitudes  
 plots mode amplitudes  
 
 -m, --modes  
 plots individual normal modes  
 
--s, --simulate [TIME\_SCALE] 
-animates the simulation at a speed TIME\_SCALE x real speed. TIME\_SCALE defaults to 1.0 if unspecified  
+-s, --simulate [TIME\_SCALE]  
+animates the simulation at a speed TIME\_SCALE x real speed. TIME\_SCALE
+defaults to 1.0 if unspecified  
 
--g, --gif 
+-g, --gif  
 only use following -s option. Saves animation as a .gif  
-
--p option is used if no options specified
 
 ## Examples
 

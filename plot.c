@@ -12,7 +12,6 @@
 
 #include "plot.h"
 
-/* Simulation doesn't run in real time. */
 #define TIMESTEP 0.01 /* calculate a frame every TIMESTEP seconds */
 #define RUNTIME 100 /* number of seconds to be simulated */
 
@@ -316,7 +315,6 @@ static void animate_string(Result result, Simulation sim, double time_scale)
     fprintf(gnuplot, "set ylabel 'y (m)'\n");
     fprintf(gnuplot, "set yrange [%lf:%lf]\n", -1 * yrange, yrange);
 
-    /* TODO: press key to stop simulation */
     printf("Press CTRL-c to stop simulation.\n");
     while (t < RUNTIME)
     {
@@ -394,7 +392,6 @@ static void animate_spring(Result result, Simulation sim, double time_scale)
     fprintf(gnuplot, "set xlabel 'x (m)'\n");
     fprintf(gnuplot, "set yrange [-1:1]\n");
 
-    /* TODO: press key to stop simulation */
     printf("Press CTRL-c to stop simulation.\n");
     while (t < RUNTIME)
     {

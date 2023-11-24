@@ -1,7 +1,7 @@
-/*--------------------------------------------------------------------*/
-/* simulate.c                                                         */
-/* Author: Godwin Duan                                                */
-/*--------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+/* simulate.c                                                                 */
+/* Author: Godwin Duan                                                        */
+/*----------------------------------------------------------------------------*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,9 +10,23 @@
 #include "types.h"
 #include "importdata.h"
 #include "asolve.h"
-#include "nsolve.h"
 #include "plot.h"
 
+/* Simulates a loaded string or mass-spring coupled oscillator.
+ *
+ * Usage:
+ * ./simulate [OPTIONS] [FILE]
+ *
+ * Options:
+ * -p    prints eigenfrequencies, eigenvectors, and mode amplitudes in terminal
+ * -e    plots eigenfrequencies
+ * -a    plots mode amplitudes
+ * -m    plots individual normal modes
+ * -s [TIME_SCALE] animates the simulation at a speed TIME_SCALE x real speed
+ *                 TIME_SCALE defaults to 1.0 if unspecified
+ *
+ * -p option is used if no options specified
+ */
 int main(int argc, char *argv[])
 {
     Simulation sim;

@@ -1,4 +1,5 @@
 Simulation setup helper script
-Add comments. A lot of comments.
+Variable tension in string
 Implement nsolve, apply FFT to determine modes and amplitudes
+Dynamically scaled time step
 GIF creation

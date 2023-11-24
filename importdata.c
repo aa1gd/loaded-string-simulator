@@ -1,7 +1,7 @@
-/*--------------------------------------------------------------------*/
-/* importdata.c                                                       */
-/* Author: Godwin Duan                                                */
-/*--------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+/* importdata.c                                                               */
+/* Author: Godwin Duan                                                        */
+/*----------------------------------------------------------------------------*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,7 +25,7 @@ int import_data(const char *filename, Simulation *sim)
         return 1;
     }
 
-    printf("Importing data from %s\n", filename);
+    /*printf("Importing data from %s\n", filename);*/
 
     fscanf(fp, "%6s\n", string_sim_type);
 
@@ -35,8 +35,7 @@ int import_data(const char *filename, Simulation *sim)
         sim->sim_type = SPRING;
     else
     {
-        fprintf(stderr, "Simulation type must be either string or \
-                spring.\n");
+        fprintf(stderr, "Simulation type must be either string or spring.\n");
         return 1;
     }
 

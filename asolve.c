@@ -1,7 +1,7 @@
-/*--------------------------------------------------------------------*/
-/* asolve.c                                                           */
-/* Author: Godwin Duan                                                */
-/*--------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+/* asolve.c                                                                   */
+/* Author: Godwin Duan                                                        */
+/*----------------------------------------------------------------------------*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +16,7 @@
 
 #include "asolve.h"
 
+/* Prints gsl_matrix m. Used for debugging. */
 static void print_matrix(const gsl_matrix *m)
 {
     int i, j;
@@ -23,13 +24,6 @@ static void print_matrix(const gsl_matrix *m)
 
     assert(m != NULL);
     
-    /* Generate test matrix to orient */
-    /*
-    for (i = 0; i < rows; i++)
-        for (j = 0; j < cols; j++)
-            gsl_matrix_set(m, i, j, 10 * (i + 1) + j + 1);
-    */
-
     rows = m->size1;
     cols = m->size2;
 
@@ -43,7 +37,9 @@ static void print_matrix(const gsl_matrix *m)
     }
 }
 
-
+/* Creates and returns a diagonal square matrix of size num_beads x num_beads.
+ * Diagonal entries correspond to masses of beads. Caller responsible for
+ * freeing matrix. */
 static gsl_matrix *create_mass_matrix(const Bead *beads, int num_beads)
 {
     int i;
@@ -61,6 +57,9 @@ static gsl_matrix *create_mass_matrix(const Bead *beads, int num_beads)
     return m;
 }
 
+/* Creates and returns a tridiagonal square matrix of size num_beads x
+ * num_beads. Entries correspond to the spring constants that connect beads.
+ * Caller responsible for freeing matrix. */
 static gsl_matrix *create_spring_k_matrix(const double *connections,
         int num_beads)
 {
@@ -90,6 +89,9 @@ static gsl_matrix *create_spring_k_matrix(const double *connections,
     return m;
 }
 
+/* Creates and returns a tridiagonal square matrix of size num_beads x
+ * num_beads. Entries correspond to the string tensions and lengths that
+ * connect beads. Caller responsible for freeing matrix. */
 static gsl_matrix *create_string_k_matrix(const double *connections,
         double tension, int num_beads)
 {
@@ -119,6 +121,8 @@ static gsl_matrix *create_string_k_matrix(const double *connections,
     return m;
 }
 
+/* Creates and returns the inverse square root of mass_matrix. Caller
+ * responsible for freeing matrix. */
 static gsl_matrix *create_invsqrt_mass_matrix(const gsl_matrix *mass_matrix)
 {
     gsl_matrix *invsqrtm;
@@ -134,16 +138,12 @@ static gsl_matrix *create_invsqrt_mass_matrix(const gsl_matrix *mass_matrix)
                 gsl_matrix_set(invsqrtm, i, j,
                         pow(gsl_matrix_get(invsqrtm, i, j), -0.5));
 
-    /*
-    printf("invsqrtm:\n");
-    print_matrix(invsqrtm);
-    */
-
     return invsqrtm;
 }
 
-
-
+/* Creates and returns the dynamical D matrix given by
+ * (mass_matrix)^-1/2(k_matrix)(mass_matrix)^-1/2. Caller responsible for
+ * freeing matrix. */
 static gsl_matrix *create_d_matrix(const gsl_matrix *mass_matrix,
         const gsl_matrix *k_matrix)
 {
@@ -168,17 +168,15 @@ static gsl_matrix *create_d_matrix(const gsl_matrix *mass_matrix,
     gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, invsqrtm, tempm, 0.0,
             d_matrix);
     
-    /*
-    printf("d_matrix:\n");
-    print_matrix(d_matrix);
-    */
-
     gsl_matrix_free(invsqrtm);
     gsl_matrix_free(tempm);
 
     return d_matrix;
 }
 
+/* Calculates the normal modes of the system defined by mass_matrix and k_matrix
+ * and saves resultant eigenfrequencies and eigenvectors in the Result it
+ * returns. Caller responsible for freeing eigenfrequencies and eigenvectors. */
 static Result find_normal_modes(const gsl_matrix *mass_matrix,
         const gsl_matrix *k_matrix)
 {
@@ -213,7 +211,6 @@ static Result find_normal_modes(const gsl_matrix *mass_matrix,
         result.eigenfrequencies[i] = sqrt(gsl_vector_get(eval, i));
 
     /* Translate eigenvectors back to regular coordinates */
-    /* Could do invsqrtm x each eigenvector, but that's more code */
     /* Then load in the translated eigenvectors */
     result.eigenvectors = malloc(result.num_modes * sizeof(double*));
     invsqrtm = create_invsqrt_mass_matrix(mass_matrix);
@@ -246,6 +243,10 @@ static Result find_normal_modes(const gsl_matrix *mass_matrix,
     return result;
 }
 
+/* Given result containing eigenfrequencies and eigenvectors, finds and returns
+ * coefficients that satisfy the initial conditions given in beads. a
+ * corresponds to the cosine term and b corresponds to the sine term. Caller
+ * responsible for freeing coefficient array. */
 static Coefficient *apply_ics(Bead *beads, Result result)
 {
     Coefficient *coeffs;
@@ -321,33 +322,12 @@ Result asolve(Simulation sim)
     printf("%d beads.\n", sim.num_beads);
     printf("\n");
 
-    /* Check that data was loaded correctly
-    if (sim.sim_type == STRING)
-        printf("String tension: %f\n", sim.tension);
-
-    for (i = 0; i < sim.num_beads; i++)
-    {
-        printf("Length: %lf\n", sim.connections[i]);
-        printf("Mass: %lf x0: %lf v0: %lf\n", sim.beads[i].mass,
-                sim.beads[i].x0, sim.beads[i].v0);
-    }
-    printf("Length: %lf\n", sim.connections[sim.num_beads]);
-    */
-
     mass_matrix = create_mass_matrix(sim.beads, sim.num_beads);
     if (sim.sim_type == SPRING)
         k_matrix = create_spring_k_matrix(sim.connections, sim.num_beads);
     if (sim.sim_type == STRING)
         k_matrix = create_string_k_matrix(sim.connections, sim.tension,
                 sim.num_beads);
-
-    /* Check that matrices were loaded correctly */
-    /*
-    printf("Mass matrix:\n");
-    print_matrix(mass_matrix);
-    printf("k matrix:\n");
-    print_matrix(k_matrix);
-    */
 
     result = find_normal_modes(mass_matrix, k_matrix);
     result.coefficients = apply_ics(sim.beads, result);

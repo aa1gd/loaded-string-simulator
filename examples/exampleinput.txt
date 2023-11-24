@@ -1,8 +1,0 @@
-String/Spring
-(if string: Tension in N)
-N (# of beads)
-a/k
-m x0 v0
-a/k
-m x0 v0
-a/k

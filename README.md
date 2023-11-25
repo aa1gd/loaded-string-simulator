@@ -10,7 +10,9 @@ for computation and gnuplot to generate plots.
 
 Ensure GSL, libgsl-devel, and gnuplot are installed. If you want to generate
 gifs, install either ffmpeg or imagemagick and enable the appropriate option for
-GIFFLAGS in the makefile. Then run
+GIFFLAGS in the makefile.
+
+Then run 
 
 ```bash
 make

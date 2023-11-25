@@ -12,7 +12,7 @@
 
 #include "plot.h"
 
-#define SIM_GRANULARITY 32 /* number of frames to generate in one period of the
+#define SIM_GRANULARITY 100 /* number of frames to generate in one period of the
                               highest frequency normal mode */
 #define RUNTIME 10 /* number of seconds to be simulated */
 

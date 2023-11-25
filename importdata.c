@@ -25,11 +25,8 @@ int import_data(char *filename, Simulation *sim)
         return 1;
     }
 
-    /*printf("Importing data from %s\n", filename);*/
-
-    if (strrchr(filename, '.') == NULL)
-        strcpy(sim->filename, filename);
-    *strrchr(filename, '.') = '\0';
+    if (strrchr(filename, '.') != NULL)
+        *strrchr(filename, '.') = '\0';
     strcpy(sim->filename, filename);
 
     fscanf(fp, "%6s\n", string_sim_type);

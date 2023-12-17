@@ -8,6 +8,9 @@ for computation and gnuplot to generate plots.
 
 ## Compiling
 
+This program was developed on Linux. It may work on MacOS, but probably will not
+work on Windows since commands are fed to gnuplot through a pipe.
+
 Ensure GSL, libgsl-devel, and gnuplot are installed. If you want to generate
 gifs, install either ffmpeg or imagemagick and enable the appropriate option for
 GIFFLAGS in the makefile.
